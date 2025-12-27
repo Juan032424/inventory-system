@@ -21,30 +21,55 @@ function useClickOutside(ref, handler) {
 }
 
 // --- Accordion Component ---
-const AccordionItem = ({ title, icon: Icon, isOpen, onToggle, children, activeCount = 0 }) => (
-    <div className="border-b border-blue-800/30 last:border-0">
-        <button
-            onClick={onToggle}
-            className={`w-full flex items-center justify-between p-4 transition-colors ${isOpen ? 'bg-blue-900/20' : 'hover:bg-blue-900/10'}`}
-        >
-            <div className="flex items-center gap-3 text-blue-100">
-                <Icon size={18} className="text-blue-400" />
-                <span className="font-medium text-sm">{title}</span>
-                {activeCount > 0 && (
-                    <span className="bg-blue-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px]">
-                        {activeCount}
-                    </span>
-                )}
-            </div>
-            {isOpen ? <ChevronUp size={16} className="text-blue-400" /> : <ChevronDown size={16} className="text-blue-500/50" />}
-        </button>
-        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
-            <div className="p-4 bg-slate-900/30">
-                {children}
+const AccordionItem = ({ title, icon: Icon, isOpen, onToggle, children, activeCount = 0 }) => {
+    const [isAnimating, setIsAnimating] = useState(false);
+    const [overflowVisible, setOverflowVisible] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            setIsAnimating(true);
+            setOverflowVisible(false); // Start hidden for animation
+        } else {
+            setIsAnimating(true);
+            setOverflowVisible(false); // Hide immediately when closing
+        }
+    }, [isOpen]);
+
+    const handleTransitionEnd = () => {
+        setIsAnimating(false);
+        if (isOpen) {
+            setOverflowVisible(true); // Show overflow when fully open
+        }
+    };
+
+    return (
+        <div className="border-b border-blue-800/30 last:border-0 relative">
+            <button
+                onClick={onToggle}
+                className={`w-full flex items-center justify-between p-4 transition-colors ${isOpen ? 'bg-blue-900/20' : 'hover:bg-blue-900/10'}`}
+            >
+                <div className="flex items-center gap-3 text-blue-100">
+                    <Icon size={18} className="text-blue-400" />
+                    <span className="font-medium text-sm">{title}</span>
+                    {activeCount > 0 && (
+                        <span className="bg-blue-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px]">
+                            {activeCount}
+                        </span>
+                    )}
+                </div>
+                {isOpen ? <ChevronUp size={16} className="text-blue-400" /> : <ChevronDown size={16} className="text-blue-500/50" />}
+            </button>
+            <div
+                onTransitionEnd={handleTransitionEnd}
+                className={`transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'} ${overflowVisible ? 'overflow-visible' : 'overflow-hidden'}`}
+            >
+                <div className="p-4 bg-slate-900/30">
+                    {children}
+                </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 // --- Modern MultiSelect Component ---
 const ModernMultiSelect = ({ label, options, selected = [], onChange, enableSearch = false }) => {
@@ -71,12 +96,12 @@ const ModernMultiSelect = ({ label, options, selected = [], onChange, enableSear
             {/* Trigger Button */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm transition-all duration-200 ${isOpen
-                    ? 'bg-blue-600/10 border-blue-500 text-blue-100 ring-1 ring-blue-500/50'
-                    : 'bg-slate-800/50 border-blue-900/50 text-slate-300 hover:border-blue-700 hover:bg-slate-800'
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm transition-all duration-200 shadow-sm ${isOpen
+                    ? 'bg-blue-600/20 border-blue-400 text-white ring-2 ring-blue-500/30'
+                    : 'bg-slate-800 border-blue-900/50 text-slate-200 hover:border-blue-500 hover:bg-slate-700'
                     }`}
             >
-                <span className="truncate max-w-[180px]">
+                <span className="truncate max-w-[180px] text-left">
                     {selected.length === 0
                         ? `Seleccionar ${label}...`
                         : selected.length === 1
@@ -88,10 +113,10 @@ const ModernMultiSelect = ({ label, options, selected = [], onChange, enableSear
 
             {/* Dropdown Panel */}
             {isOpen && (
-                <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-[#1e293b] border border-blue-700 rounded-xl shadow-2xl shadow-black/50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                <div className="absolute top-full left-0 right-0 mt-2 z-[100] bg-[#1e293b] border border-blue-500 rounded-xl shadow-2xl shadow-black overflow-hidden animate-in fade-in zoom-in-95 duration-100 ring-1 ring-white/10">
                     {/* Search Bar */}
                     {enableSearch && (
-                        <div className="p-2 border-b border-blue-800/50 bg-slate-900/50 sticky top-0">
+                        <div className="p-2 border-b border-blue-700/50 bg-slate-900/80 sticky top-0 backdrop-blur-sm">
                             <div className="relative">
                                 <Search size={14} className="absolute left-2.5 top-2.5 text-blue-400" />
                                 <input
@@ -191,7 +216,7 @@ export default function Sidebar({ isOpen, onUpload, options, filters, setFilters
             <div className="h-20 flex items-center px-6 border-b border-blue-800/50 bg-[#1e293b]/50 backdrop-blur-md">
                 <div className="flex items-center gap-3 w-full">
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center p-0.5 shadow-lg shadow-blue-500/20 shrink-0 ring-1 ring-white/10">
-                        <img src="/Logo.jpg" alt="Logo" className="w-full h-full object-cover rounded-lg mix-blend-overlay opacity-90" />
+                        <img src="Logo.jpg" alt="Logo" className="w-full h-full object-cover rounded-lg mix-blend-overlay opacity-90" />
                     </div>
                     <div className="flex flex-col">
                         <span className="font-bold text-lg tracking-tight leading-none text-white font-heading">Inventory<span className="text-blue-400">Pro</span></span>
