@@ -168,14 +168,27 @@ export const calculateMaterialSummary = (data) => {
 export const calculateGestorDistribution = (data) => {
     const grouped = {};
 
-    data.filter(r => r['Proceso'] === 'Salida').forEach(row => {
-        const gestor = row['Nombre Recibe'] || 'Desconocido';
-        if (!grouped[gestor]) grouped[gestor] = 0;
-        grouped[gestor] += (row['Cantidad'] || 0);
+    data.forEach(row => {
+        let gestor = null;
+        let type = null; // 'Entregado' or 'Legalizado'
+        const qty = row['Cantidad'] || 0;
+
+        if (row['Proceso'] === 'Salida') {
+            gestor = row['Nombre Recibe'];
+            type = 'Entregado';
+        } else if (row['Proceso'] === 'Legalizado') {
+            gestor = row['Nombre Entrega'];
+            type = 'Legalizado';
+        }
+
+        if (gestor) {
+            if (!grouped[gestor]) grouped[gestor] = { Gestor: gestor, Entregado: 0, Legalizado: 0 };
+            if (type === 'Entregado') grouped[gestor].Entregado += qty;
+            if (type === 'Legalizado') grouped[gestor].Legalizado += qty;
+        }
     });
 
-    return Object.entries(grouped)
-        .map(([Gestor, Entregado]) => ({ Gestor, Entregado }))
+    return Object.values(grouped)
         .sort((a, b) => b.Entregado - a.Entregado);
 };
 

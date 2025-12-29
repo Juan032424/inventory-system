@@ -429,6 +429,77 @@ export default function Dashboard({ kpis, summary, gestorDist, dailyStats, proce
                     </table>
                 </div>
             </div>
+
+            {/* NEW: GESTOR SUMMARY SECTION */}
+            <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 flex flex-col mt-8">
+                <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-gradient-to-r from-indigo-50/50 to-white">
+                    <div className="flex items-center gap-2">
+                        <div className="p-2 bg-white shadow-sm text-indigo-600 rounded-lg ring-1 ring-indigo-100">
+                            <Users size={20} />
+                        </div>
+                        <h3 className="font-bold text-lg text-slate-800">Resumen de Gestión por Técnico/Gestor</h3>
+                    </div>
+                    <button
+                        onClick={() => {
+                            try {
+                                const dataToExport = gestorDist.map(item => ({
+                                    "Gestor": item.Gestor,
+                                    "Total Entregado": item.Entregado,
+                                    "Total Legalizado": item.Legalizado
+                                }));
+                                const ws = utils.json_to_sheet(dataToExport);
+                                const wb = utils.book_new();
+                                utils.book_append_sheet(wb, ws, "Gestores");
+                                const wscols = [{ wch: 40 }, { wch: 20 }, { wch: 20 }];
+                                ws['!cols'] = wscols;
+                                const dateStr = new Date().toISOString().split('T')[0];
+                                writeFile(wb, `Reporte_Gestores_${dateStr}.xlsx`);
+                            } catch (error) {
+                                console.error("Error exporting Gestor Excel:", error);
+                                alert("Error al generar el reporte de gestores.");
+                            }
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/20 ring-1 ring-indigo-500"
+                        title="Descargar Reporte Gestores"
+                    >
+                        <Download size={16} />
+                        Descargar Reporte
+                    </button>
+                </div>
+                <div className="p-0 overflow-auto max-h-[600px]">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-slate-50 text-slate-500 sticky top-0 z-10 shadow-sm">
+                            <tr>
+                                <th className="py-4 px-6 font-semibold text-xs uppercase tracking-wider">Nombre del Gestor / Técnico</th>
+                                <th className="py-4 px-6 text-right font-semibold text-xs uppercase tracking-wider">Total Entregado</th>
+                                <th className="py-4 px-6 text-right font-semibold text-xs uppercase tracking-wider">Total Legalizado</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {gestorDist.map((row, idx) => (
+                                <tr key={idx} className="hover:bg-indigo-50/30 transition-colors group">
+                                    <td className="py-3 px-6 font-medium text-slate-700">{row.Gestor}</td>
+                                    <td className="py-3 px-6 text-right text-slate-600">
+                                        {row.Entregado.toLocaleString()}
+                                    </td>
+                                    <td className="py-3 px-6 text-right">
+                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${row.Legalizado > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'}`}>
+                                            {row.Legalizado.toLocaleString()}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                            {gestorDist.length === 0 && (
+                                <tr>
+                                    <td colSpan="3" className="py-8 text-center text-slate-400 italic">
+                                        No hay información de gestores disponible.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div >
     );
 }
