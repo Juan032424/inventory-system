@@ -359,7 +359,77 @@ export default function Dashboard({ kpis, summary, gestorDist, dailyStats, proce
                 </div>
 
             </div>
-        </div>
+
+            {/* NEW: DETAILED STOCK REPORT SECTION */}
+            <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-900/5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 flex flex-col mt-8">
+                <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-gradient-to-r from-emerald-50/50 to-white">
+                    <div className="flex items-center gap-2">
+                        <div className="p-2 bg-white shadow-sm text-emerald-600 rounded-lg ring-1 ring-emerald-100">
+                            <Package size={20} />
+                        </div>
+                        <h3 className="font-bold text-lg text-slate-800">Detalle de Stock en Almacén ({summary.filter(i => i.Stock_Almacen > 0).length})</h3>
+                    </div>
+                    <button
+                        onClick={() => {
+                            try {
+                                const stockOnly = summary.filter(i => i.Stock_Almacen > 0);
+                                const dataToExport = stockOnly.map(item => ({
+                                    "Código": item.Codigo,
+                                    "Material": item.Material,
+                                    "Stock Actual": item.Stock_Almacen
+                                }));
+                                const ws = utils.json_to_sheet(dataToExport);
+                                const wb = utils.book_new();
+                                utils.book_append_sheet(wb, ws, "Stock Almacen");
+                                const wscols = [{ wch: 15 }, { wch: 50 }, { wch: 15 }];
+                                ws['!cols'] = wscols;
+                                const dateStr = new Date().toISOString().split('T')[0];
+                                writeFile(wb, `Stock_Almacen_${dateStr}.xlsx`);
+                            } catch (error) {
+                                console.error("Error exporting Stock Excel:", error);
+                                alert("Error al generar el reporte de stock.");
+                            }
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/20 ring-1 ring-emerald-500"
+                        title="Descargar LISTADO DE STOCK"
+                    >
+                        <Download size={16} />
+                        Descargar Reporte Stock
+                    </button>
+                </div>
+                <div className="p-0 overflow-auto max-h-[600px]">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-slate-50 text-slate-500 sticky top-0 z-10 shadow-sm">
+                            <tr>
+                                <th className="py-4 px-6 font-semibold text-xs uppercase tracking-wider">Código</th>
+                                <th className="py-4 px-6 font-semibold text-xs uppercase tracking-wider">Descripción del Material</th>
+                                <th className="py-4 px-6 text-right font-semibold text-xs uppercase tracking-wider">Stock Disponible</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {summary.filter(row => row.Stock_Almacen > 0).map((row, idx) => (
+                                <tr key={idx} className="hover:bg-emerald-50/30 transition-colors group">
+                                    <td className="py-3 px-6 text-slate-500 font-mono text-xs">{row.Codigo}</td>
+                                    <td className="py-3 px-6 font-medium text-slate-700">{row.Material}</td>
+                                    <td className="py-3 px-6 text-right">
+                                        <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold">
+                                            {row.Stock_Almacen.toLocaleString()}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                            {summary.filter(row => row.Stock_Almacen > 0).length === 0 && (
+                                <tr>
+                                    <td colSpan="3" className="py-8 text-center text-slate-400 italic">
+                                        No hay materiales en stock actualmente.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div >
     );
 }
 
