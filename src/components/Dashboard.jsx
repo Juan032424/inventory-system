@@ -1,6 +1,7 @@
-import { ArrowUpRight, ArrowDownRight, Package, Truck, Archive, CheckCircle, TrendingUp, Users, Calendar, Undo2 } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Package, Truck, Archive, CheckCircle, TrendingUp, Users, Calendar, Undo2, Download } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer, LineChart, Line, Legend, AreaChart, Area, PieChart, Pie, Cell, ComposedChart } from 'recharts';
 import propTypes from 'prop-types';
+import { utils, writeFile } from 'xlsx';
 
 const KPICard = ({ title, value, icon: Icon, gradient }) => (
     <div
@@ -42,6 +43,45 @@ const CustomTooltip = ({ active, payload, label }) => {
 export default function Dashboard({ kpis, summary, gestorDist, dailyStats, processDist, pareto }) {
     const topStock = [...summary].sort((a, b) => b.Stock_Almacen - a.Stock_Almacen).slice(0, 10);
     const topGestor = [...gestorDist].slice(0, 10);
+
+    const handleExportExcel = () => {
+        try {
+            // Format data for Excel
+            const dataToExport = summary.map(item => ({
+                "Código Material": item.Codigo,
+                "Descripción Material": item.Material,
+                "Total Ingresado": item.Ingresado,
+                "Total Entregado": item.Entregado,
+                "Total Devoluciones": item.Devoluciones,
+                "Stock en Almacén": item.Stock_Almacen,
+                "Stock en Calle (Gestores)": item.Stock_Calle
+            }));
+
+            // Create workbook and worksheet
+            const ws = utils.json_to_sheet(dataToExport);
+            const wb = utils.book_new();
+            utils.book_append_sheet(wb, ws, "Inventario Stock");
+
+            // Auto-width columns (basic estimation)
+            const wscols = [
+                { wch: 15 }, // Codigo
+                { wch: 40 }, // Material
+                { wch: 15 }, // Ingresado
+                { wch: 15 }, // Entregado
+                { wch: 15 }, // Devoluciones
+                { wch: 15 }, // Stock Almacen
+                { wch: 20 }, // Stock Calle
+            ];
+            ws['!cols'] = wscols;
+
+            // Generate filename with date
+            const dateStr = new Date().toISOString().split('T')[0];
+            writeFile(wb, `Reporte_Inventario_${dateStr}.xlsx`);
+        } catch (error) {
+            console.error("Error exporting Excel:", error);
+            alert("Hubo un error al generar el Excel.");
+        }
+    };
 
     return (
         <div className="space-y-8 pb-10">
@@ -95,6 +135,14 @@ export default function Dashboard({ kpis, summary, gestorDist, dailyStats, proce
                             </div>
                             <h3 className="font-bold text-lg text-slate-800">Resumen de Materiales</h3>
                         </div>
+                        <button
+                            onClick={handleExportExcel}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm ring-1 ring-emerald-500"
+                            title="Descargar tabla en Excel"
+                        >
+                            <Download size={14} />
+                            Descargar Excel
+                        </button>
                     </div>
                     <div className="flex-1 overflow-auto">
                         <table className="w-full text-sm text-left">
