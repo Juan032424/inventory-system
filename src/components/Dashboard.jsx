@@ -428,6 +428,8 @@ export default function Dashboard({ kpis, summary, gestorDist, dailyStats, proce
                         </tbody>
                     </table>
                 </div>
+
+
             </div>
 
             {/* NEW: GESTOR SUMMARY SECTION */}
@@ -437,30 +439,49 @@ export default function Dashboard({ kpis, summary, gestorDist, dailyStats, proce
                         <div className="p-2 bg-white shadow-sm text-indigo-600 rounded-lg ring-1 ring-indigo-100">
                             <Users size={20} />
                         </div>
-                        <h3 className="font-bold text-lg text-slate-800">Resumen de Gestión por Técnico/Gestor</h3>
+                        <h3 className="font-bold text-lg text-slate-800">Resumen y Detalle por Técnico/Gestor</h3>
                     </div>
                     <button
                         onClick={() => {
                             try {
-                                const dataToExport = gestorDist.map(item => ({
+                                const wb = utils.book_new();
+
+                                // Sheet 1: Summary
+                                const summaryData = gestorDist.map(item => ({
                                     "Gestor": item.Gestor,
                                     "Total Entregado": item.Entregado,
                                     "Total Legalizado": item.Legalizado
                                 }));
-                                const ws = utils.json_to_sheet(dataToExport);
-                                const wb = utils.book_new();
-                                utils.book_append_sheet(wb, ws, "Gestores");
-                                const wscols = [{ wch: 40 }, { wch: 20 }, { wch: 20 }];
-                                ws['!cols'] = wscols;
+                                const wsSummary = utils.json_to_sheet(summaryData);
+                                wsSummary['!cols'] = [{ wch: 40 }, { wch: 20 }, { wch: 20 }];
+                                utils.book_append_sheet(wb, wsSummary, "Resumen Gestores");
+
+                                // Sheet 2: Detailed Legalization
+                                const detailData = [];
+                                gestorDist.forEach(g => {
+                                    if (g.LegalizedItems) {
+                                        Object.entries(g.LegalizedItems).forEach(([mat, qty]) => {
+                                            detailData.push({
+                                                "Gestor": g.Gestor,
+                                                "Material": mat,
+                                                "Cantidad Legalizada": qty
+                                            });
+                                        });
+                                    }
+                                });
+                                const wsDetail = utils.json_to_sheet(detailData);
+                                wsDetail['!cols'] = [{ wch: 30 }, { wch: 50 }, { wch: 20 }];
+                                utils.book_append_sheet(wb, wsDetail, "Detalle Materiales");
+
                                 const dateStr = new Date().toISOString().split('T')[0];
-                                writeFile(wb, `Reporte_Gestores_${dateStr}.xlsx`);
+                                writeFile(wb, `Reporte_Gestores_Detalle_${dateStr}.xlsx`);
                             } catch (error) {
                                 console.error("Error exporting Gestor Excel:", error);
                                 alert("Error al generar el reporte de gestores.");
                             }
                         }}
                         className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/20 ring-1 ring-indigo-500"
-                        title="Descargar Reporte Gestores"
+                        title="Descargar Reporte Completo"
                     >
                         <Download size={16} />
                         Descargar Reporte
@@ -470,6 +491,7 @@ export default function Dashboard({ kpis, summary, gestorDist, dailyStats, proce
                     <table className="w-full text-sm text-left">
                         <thead className="bg-slate-50 text-slate-500 sticky top-0 z-10 shadow-sm">
                             <tr>
+                                <th className="w-10"></th> {/* Expand Toggle Column */}
                                 <th className="py-4 px-6 font-semibold text-xs uppercase tracking-wider">Nombre del Gestor / Técnico</th>
                                 <th className="py-4 px-6 text-right font-semibold text-xs uppercase tracking-wider">Total Entregado</th>
                                 <th className="py-4 px-6 text-right font-semibold text-xs uppercase tracking-wider">Total Legalizado</th>
@@ -477,21 +499,11 @@ export default function Dashboard({ kpis, summary, gestorDist, dailyStats, proce
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {gestorDist.map((row, idx) => (
-                                <tr key={idx} className="hover:bg-indigo-50/30 transition-colors group">
-                                    <td className="py-3 px-6 font-medium text-slate-700">{row.Gestor}</td>
-                                    <td className="py-3 px-6 text-right text-slate-600">
-                                        {row.Entregado.toLocaleString()}
-                                    </td>
-                                    <td className="py-3 px-6 text-right">
-                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${row.Legalizado > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'}`}>
-                                            {row.Legalizado.toLocaleString()}
-                                        </span>
-                                    </td>
-                                </tr>
+                                <GestorRow key={idx} row={row} />
                             ))}
                             {gestorDist.length === 0 && (
                                 <tr>
-                                    <td colSpan="3" className="py-8 text-center text-slate-400 italic">
+                                    <td colSpan="4" className="py-8 text-center text-slate-400 italic">
                                         No hay información de gestores disponible.
                                     </td>
                                 </tr>
@@ -503,6 +515,56 @@ export default function Dashboard({ kpis, summary, gestorDist, dailyStats, proce
         </div >
     );
 }
+
+// Helper Component for expandable rows
+const GestorRow = ({ row }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const hasLegalization = row.Legalizado > 0;
+
+    return (
+        <>
+            <tr className={`hover:bg-indigo-50/30 transition-colors group cursor-pointer ${isExpanded ? 'bg-indigo-50/30' : ''}`} onClick={() => hasLegalization && setIsExpanded(!isExpanded)}>
+                <td className="py-3 px-4 text-center">
+                    {hasLegalization ? (
+                        <button className="text-indigo-500 hover:bg-indigo-100 p-1 rounded transition-colors">
+                            {isExpanded ? <ArrowDownRight size={16} className="rotate-45" /> : <TrendingUp size={16} className="rotate-90" />}
+                        </button>
+                    ) : (
+                        <span className="text-slate-300">-</span>
+                    )}
+                </td>
+                <td className="py-3 px-6 font-medium text-slate-700">{row.Gestor}</td>
+                <td className="py-3 px-6 text-right text-slate-600">
+                    {row.Entregado.toLocaleString()}
+                </td>
+                <td className="py-3 px-6 text-right">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${hasLegalization ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'}`}>
+                        {row.Legalizado.toLocaleString()}
+                    </span>
+                </td>
+            </tr>
+            {isExpanded && row.LegalizedItems && (
+                <tr className="bg-slate-50 border-b border-indigo-100">
+                    <td colSpan="4" className="p-4 pl-16">
+                        <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-sm">
+                            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 border-b border-slate-100 pb-2">
+                                Detalle de Legalizaciones - {row.Gestor}
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
+                                {Object.entries(row.LegalizedItems).sort((a, b) => b[1] - a[1]).map(([material, qty], i) => (
+                                    <div key={i} className="flex justify-between items-center text-xs py-1 hover:bg-slate-50 px-2 rounded">
+                                        <span className="text-slate-600 truncate mr-2" title={material}>{material}</span>
+                                        <span className="font-mono font-bold text-indigo-600">{qty.toLocaleString()}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            )}
+        </>
+    );
+};
 
 Dashboard.propTypes = {
     kpis: propTypes.object,

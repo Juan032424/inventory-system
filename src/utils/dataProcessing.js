@@ -168,23 +168,63 @@ export const calculateMaterialSummary = (data) => {
 export const calculateGestorDistribution = (data) => {
     const grouped = {};
 
+    // First pass: Identify all "Salida" (Warehouse -> Gestor) to build a list of known Gestors
+    const knownGestors = new Set();
+    data.forEach(row => {
+        if (row['Proceso'] === 'Salida' && row['Nombre Recibe']) {
+            knownGestors.add(row['Nombre Recibe']);
+        }
+    });
+
     data.forEach(row => {
         let gestor = null;
         let type = null; // 'Entregado' or 'Legalizado'
-        const qty = row['Cantidad'] || 0;
+        const qty = parseFloat(row['Cantidad']) || 0;
+        const material = row['Items'] || 'Desconocido';
 
         if (row['Proceso'] === 'Salida') {
             gestor = row['Nombre Recibe'];
             type = 'Entregado';
         } else if (row['Proceso'] === 'Legalizado') {
-            gestor = row['Nombre Entrega'];
+            // Logic to find Gestor in Legalization:
+            // 1. Try 'Nombre Entrega' (Standard: Gestor delivers to project)
+            // 2. If not found or ambiguous, alias check against known Gestors
+            const candidate = row['Nombre Entrega'];
+
+            if (candidate && knownGestors.has(candidate)) {
+                gestor = candidate;
+            } else if (knownGestors.has(row['Nombre Recibe'])) {
+                // Edge case: Sometimes names are swapped in manual entry
+                gestor = row['Nombre Recibe'];
+            } else {
+                // Fallback: Use the candidate anyway if it exists, otherwise 'Desconocido'
+                gestor = candidate || 'Desconocido';
+            }
             type = 'Legalizado';
         }
 
         if (gestor) {
-            if (!grouped[gestor]) grouped[gestor] = { Gestor: gestor, Entregado: 0, Legalizado: 0 };
-            if (type === 'Entregado') grouped[gestor].Entregado += qty;
-            if (type === 'Legalizado') grouped[gestor].Legalizado += qty;
+            if (!grouped[gestor]) {
+                grouped[gestor] = {
+                    Gestor: gestor,
+                    Entregado: 0,
+                    Legalizado: 0,
+                    LegalizedItems: {}
+                };
+            }
+
+            if (type === 'Entregado') {
+                grouped[gestor].Entregado += qty;
+            }
+
+            if (type === 'Legalizado') {
+                grouped[gestor].Legalizado += qty;
+                // Track material breakdown
+                if (!grouped[gestor].LegalizedItems[material]) {
+                    grouped[gestor].LegalizedItems[material] = 0;
+                }
+                grouped[gestor].LegalizedItems[material] += qty;
+            }
         }
     });
 
